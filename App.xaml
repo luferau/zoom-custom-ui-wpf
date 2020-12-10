@@ -1,0 +1,8 @@
+﻿<Application x:Class="zoom_custom_ui_wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:zoom_custom_ui_wpf">
+    <Application.Resources>
+         
+    </Application.Resources>
+</Application>

@@ -1,2 +1,2 @@
 # zoom-custom-ui-wpf
-Just example illustates how to implement Zoom Custom UI on WPF app
+Just example illustrates how to implement Zoom Custom UI in WPF app
