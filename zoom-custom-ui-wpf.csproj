@@ -66,8 +66,10 @@
     <Compile Include="Services\Log\ILogService.cs" />
     <Compile Include="Services\Settings\ApplicationSettings.cs" />
     <Compile Include="Services\Settings\IApplicationSettings.cs" />
+    <Compile Include="Services\Zoom\IZoomHost.cs" />
     <Compile Include="Services\Zoom\IZoomService.cs" />
     <Compile Include="Services\Zoom\ZoomService.cs" />
+    <Compile Include="Services\Zoom\ZoomSettings.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\RelayCommand.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />

@@ -5,21 +5,25 @@ using zoom_custom_ui_wpf.Models;
 
 namespace zoom_custom_ui_wpf.Services.Zoom
 {
-    public interface IZoomService
+    public interface IZoomService : IZoomHost
     {
         event EventHandler<bool> InitializedChanged;
 
         bool Initialized { get; }
 
         Task<bool> InitializationAsync();
-        void Cleanup();
+        void JoinMeeting(string userName, ulong meetingNumber, string password);
+        void LeaveMeeting();
+        void CleanUp();
+
+        void ApplySettings(ZoomSettings settings);
 
         IEnumerable<ZoomDevice> EnumerateVideoDevices();
         IEnumerable<ZoomDevice> EnumerateMicDevices();
         IEnumerable<ZoomDevice> EnumerateSpeakerDevices();
 
-        void SelectVideoDevice(string deviceId);
-        void SelectMicDevice(string deviceId, string deviceName);
-        void SelectSpeakerDevice(string deviceId, string deviceName);
+        bool SetVideoDevice(ZoomDevice device);
+        bool SetMicDevice(ZoomDevice device);
+        bool SetSpeakerDevice(ZoomDevice device);
     }
 }

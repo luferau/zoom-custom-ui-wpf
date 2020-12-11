@@ -24,7 +24,7 @@ namespace zoom_custom_ui_wpf
 
             // Create and show MainWindow
             var mainWindow = new MainWindow();
-            var mainViewModel = new MainViewModel(zoomService);
+            var mainViewModel = new MainViewModel(zoomService, credentialsService);
 
             mainWindow.DataContext = mainViewModel;
             mainWindow.ShowDialog();

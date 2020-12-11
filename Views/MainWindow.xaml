@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="{Binding Title}" Height="450" Width="800">
+        Title="{Binding Title}" Height="400" Width="1000" Loaded="Window_Loaded">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
@@ -42,7 +42,7 @@
                         Grid.Row="0"
                         Margin="5,5,0,0"
                         ItemsSource="{Binding VideoDevices}"
-                        SelectedIndex="{Binding SelectedVideoDeviceIndex}"
+                        SelectedItem="{Binding SelectedVideoDevice}"
                         DisplayMemberPath="Name"/>
 
                     <!-- Microphone -->
@@ -56,8 +56,8 @@
                         Grid.Row="1"
                         Margin="5,5,0,0"
                         ItemsSource="{Binding MicDevices}"
-                        SelectedIndex="{Binding SelectedMicDeviceIndex}"
-                        DisplayMemberPath="Name" />
+                        SelectedItem="{Binding SelectedMicDevice}"
+                        DisplayMemberPath="Name"/>
 
                     <!-- Speaker -->
                     <TextBlock
@@ -70,7 +70,7 @@
                         Grid.Row="2"
                         Margin="5,5,0,0"
                         ItemsSource="{Binding SpeakerDevices}"
-                        SelectedIndex="{Binding SelectedSpeakerDeviceIndex}"
+                        SelectedItem="{Binding SelectedSpeakerDevice}"
                         DisplayMemberPath="Name" />
                 </Grid>
             </GroupBox>
@@ -79,10 +79,69 @@
                 Margin="0,10,0,0"
                 VerticalAlignment="Top"
                 Header="Meeting">
-                <Button 
-                    Content="Login"
-                    Width="100"
-                    Command="{Binding LoginCommand}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- User name -->
+                    <TextBlock
+                        Grid.Column="0"
+                        Grid.Row="0"
+                        VerticalAlignment="Center"
+                        Text="User name:"/>
+                    <TextBox
+                        Grid.Column="1"
+                        Grid.Row="0"
+                        Margin="5,5,0,0"
+                        Text="{Binding UserName}"/>
+
+                    <!-- MeetingNumber -->
+                    <TextBlock
+                        Grid.Column="0"
+                        Grid.Row="1"
+                        VerticalAlignment="Center"
+                        Text="Meeting number:"/>
+                    <TextBox
+                        Grid.Column="1"
+                        Grid.Row="1"
+                        Margin="5,5,0,0"
+                        Text="{Binding MeetingNumber}"/>
+
+                    <!-- Password -->
+                    <TextBlock
+                        Grid.Column="0"
+                        Grid.Row="2"
+                        VerticalAlignment="Center"
+                        Text="Password:"/>
+                    <TextBox
+                        Grid.Column="1"
+                        Grid.Row="2"
+                        Margin="5,5,0,0"
+                        Text="{Binding Password}"/>
+
+                    <Button 
+                        Grid.Column="0"
+                        Grid.Row="3"
+                        Content="Join"
+                        Width="100"
+                        Margin="5,5,0,0"
+                        Command="{Binding JoinCommand}"/>
+                    <Button 
+                        Grid.Column="1"
+                        Grid.Row="3"
+                        Content="Leave"
+                        Width="100"
+                        Margin="5,5,0,0"
+                        Command="{Binding LeaveCommand}"/>
+                </Grid>
             </GroupBox>
         </StackPanel>
 
@@ -90,8 +149,11 @@
         <!-- Video Container -->
         <Border 
             Grid.Column="1"
+            Margin="10,10,10,10"
             x:Name="VideoContainerBorder" 
             Background="Transparent" 
-            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            HorizontalAlignment="Stretch" 
+            VerticalAlignment="Stretch"
+            SizeChanged="VideoContainerBorder_SizeChanged"/>
     </Grid>
 </Window>

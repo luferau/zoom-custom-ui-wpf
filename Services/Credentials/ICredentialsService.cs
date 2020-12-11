@@ -4,5 +4,8 @@
     {
         string GetAppKey();
         string GetAppSecret();
+        string GetUserName();
+        string GetMeetingNumber();
+        string GetPassword();
     }
 }
