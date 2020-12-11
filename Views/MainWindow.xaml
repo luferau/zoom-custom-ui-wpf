@@ -3,10 +3,95 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:zoom_custom_ui_wpf"
         mc:Ignorable="d"
         Title="{Binding Title}" Height="450" Width="800">
     <Grid>
-        <TextBlock Text="{Binding Text}"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel
+            Grid.Column="0"
+            Orientation="Vertical">
+            
+            <!-- Settings -->
+            <GroupBox
+                Margin="0,10,0,0"
+                VerticalAlignment="Top"
+                Header="Settings">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Video -->
+                    <TextBlock
+                        Grid.Column="0"
+                        Grid.Row="0"
+                        VerticalAlignment="Center"
+                        Text="Video device:"/>
+                    <ComboBox
+                        Grid.Column="1"
+                        Grid.Row="0"
+                        Margin="5,5,0,0"
+                        ItemsSource="{Binding VideoDevices}"
+                        SelectedIndex="{Binding SelectedVideoDeviceIndex}"
+                        DisplayMemberPath="Name"/>
+
+                    <!-- Microphone -->
+                    <TextBlock 
+                        Grid.Column="0"
+                        Grid.Row="1" 
+                        VerticalAlignment="Center"
+                        Text="Microphone device:"/>
+                    <ComboBox
+                        Grid.Column="1"
+                        Grid.Row="1"
+                        Margin="5,5,0,0"
+                        ItemsSource="{Binding MicDevices}"
+                        SelectedIndex="{Binding SelectedMicDeviceIndex}"
+                        DisplayMemberPath="Name" />
+
+                    <!-- Speaker -->
+                    <TextBlock
+                        Grid.Column="0"
+                        Grid.Row="2"
+                        VerticalAlignment="Center"
+                        Text="Speaker device:"/>
+                    <ComboBox
+                        Grid.Column="1"
+                        Grid.Row="2"
+                        Margin="5,5,0,0"
+                        ItemsSource="{Binding SpeakerDevices}"
+                        SelectedIndex="{Binding SelectedSpeakerDeviceIndex}"
+                        DisplayMemberPath="Name" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox  
+                Margin="0,10,0,0"
+                VerticalAlignment="Top"
+                Header="Meeting">
+                <Button 
+                    Content="Login"
+                    Width="100"
+                    Command="{Binding LoginCommand}"/>
+            </GroupBox>
+        </StackPanel>
+
+
+        <!-- Video Container -->
+        <Border 
+            Grid.Column="1"
+            x:Name="VideoContainerBorder" 
+            Background="Transparent" 
+            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
     </Grid>
 </Window>

@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using zoom_custom_ui_wpf.Models;
 using zoom_custom_ui_wpf.Services.Credentials;
 using zoom_custom_ui_wpf.Services.Log;
@@ -16,7 +16,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
         private readonly ICredentialsService _credentialsService;
         private readonly ILogService _logService;
 
-        private bool _zoomInitialized;
+        private TaskCompletionSource<bool> _authTaskCompletion;
 
         public ZoomService(
             IApplicationSettings appSettingsService,
@@ -26,12 +26,42 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             _appSettingsService = appSettingsService;
             _credentialsService = credentialsService;
             _logService = logService;
-            _zoomInitialized = false;
-
-            
         }
 
-        public bool Init()
+        private bool _initialized;
+        public bool Initialized
+        {
+            get => _initialized;
+            private set
+            {
+                _initialized = value;
+                OnInitializedChanged(Initialized);
+            }
+        }
+
+        public async Task<bool> InitializationAsync()
+        {
+            var sdkInitialized = InitializeSdk();
+            if (!sdkInitialized) return false;
+
+            Initialized = await SdkAuthenticationAsync();
+            return Initialized;
+        }
+
+        public void Cleanup()
+        {
+            if (Initialized)
+            {
+                Initialized = false;
+
+                // Zoom SDK clean up
+                ZOOM_SDK_DOTNET_WRAP.SDKError error = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.CleanUp();
+
+                _logService.Log($"ZOOM cleanup result: {error}");
+            }
+        }
+
+        private bool InitializeSdk()
         {
             ZOOM_SDK_DOTNET_WRAP.InitParam param = new ZOOM_SDK_DOTNET_WRAP.InitParam
             {
@@ -40,25 +70,13 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             };
             ZOOM_SDK_DOTNET_WRAP.SDKError error = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.Initialize(param);
 
-            _logService.Log($"ZOOM initialize result: {error}");
+            _logService.Log($"ZOOM InitSDK request result: {error}");
 
-            if (error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS)
-            {
-                _zoomInitialized = true;
-                return true;
-            }
-            _zoomInitialized = false;
-            return false;
+            return error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS;
         }
 
-        public void Login()
+        private Task<bool> SdkAuthenticationAsync()
         {
-            if (!_zoomInitialized)
-            {
-                if (!Init())
-                    return;
-            }
-
             // Register callbacks
             ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetAuthServiceWrap().Add_CB_onAuthenticationReturn(OnAuthenticationReturn);
             ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetAuthServiceWrap().Add_CB_onLoginRet(OnLoginRet);
@@ -72,19 +90,50 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
             ZOOM_SDK_DOTNET_WRAP.SDKError error = CZoomSDKeDotNetWrap.Instance.GetAuthServiceWrap().SDKAuth(authParam);
 
-            _logService.Log($"ZOOM authentication result: {error}");
+            _logService.Log($"ZOOM SDKAuth request result: {error}");
+
+            _authTaskCompletion = new TaskCompletionSource<bool>();
+            return _authTaskCompletion.Task;
         }
 
-        public void Cleanup()
-        {
-            if (_zoomInitialized)
-            {
-                // Zoom SDK clean up
-                ZOOM_SDK_DOTNET_WRAP.SDKError error = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.CleanUp();
+        #region Zoom wrapper callbacks
 
-                _logService.Log($"ZOOM cleanup result: {error}");
+        private void OnAuthenticationReturn(AuthResult result)
+        {
+            _logService.Log($"ZOOM OnAuthenticationReturn callback AuthResult: {result}");
+
+            if (result == ZOOM_SDK_DOTNET_WRAP.AuthResult.AUTHRET_SUCCESS)
+            {
+                _authTaskCompletion.SetResult(true);
+            }
+            else
+            {
+                _authTaskCompletion.SetResult(false);
             }
         }
+
+        private void OnLoginRet(LOGINSTATUS status, IAccountInfo pAccountInfo)
+        {
+            _logService.Log($"ZOOM OnLoginRet callback LoginStatus: {status}");
+        }
+
+        private void OnLogout()
+        {
+            _logService.Log("ZOOM OnLogout callback");
+        }
+
+        #endregion
+
+        #region Events
+
+        public event EventHandler<bool> InitializedChanged;
+
+        protected virtual void OnInitializedChanged(bool state)
+        {
+            InitializedChanged?.Invoke(this, state);
+        }
+
+        #endregion
 
         private void SetDevices()
         {
@@ -95,7 +144,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             {
                 var i = devices.FindIndex(device => device.Id == videoDeviceId);
                 if (i != -1)
-                    SelectCamera(devices[i].Id);
+                    SelectVideoDevice(devices[i].Id);
             }
 
             devices = EnumerateMicDevices()?.ToList();
@@ -104,7 +153,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             {
                 var i = devices.FindIndex(d => d.Id == micDeviceId);
                 if (i != -1)
-                    SelectMic(devices[i].Id, devices[i].Name);
+                    SelectMicDevice(devices[i].Id, devices[i].Name);
             }
 
             devices = EnumerateSpeakerDevices()?.ToList();
@@ -113,33 +162,9 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             {
                 var i = devices.FindIndex(d => d.Id == speakerDeviceId);
                 if (i != -1)
-                    SelectSpeakers(devices[i].Id, devices[i].Name);
+                    SelectSpeakerDevice(devices[i].Id, devices[i].Name);
             }
         }
-
-        #region Zoom wrapper callbacks
-
-        public void OnAuthenticationReturn(AuthResult result)
-        {
-            _logService.Log($"ZOOM authentication return callback AuthResult: {result}");
-
-            if (result == ZOOM_SDK_DOTNET_WRAP.AuthResult.AUTHRET_SUCCESS)
-            {
-                SetDevices();
-            }
-        }
-
-        public void OnLoginRet(LOGINSTATUS status, IAccountInfo pAccountInfo)
-        {
-            _logService.Log($"ZOOM login callback LoginStatus: {status}");
-        }
-
-        public void OnLogout()
-        {
-            _logService.Log("ZOOM logout callback");
-        }
-
-        #endregion
 
         #region Enumerate PC audio/video devices
 
@@ -204,19 +229,19 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         #region Select PC audio/video devices for use in Zoom
 
-        public void SelectCamera(string deviceId)
+        public void SelectVideoDevice(string deviceId)
         {
             var videoSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetVideoSettings();
             videoSettings.SelectCamera(deviceId);
         }
 
-        public void SelectMic(string deviceId, string deviceName)
+        public void SelectMicDevice(string deviceId, string deviceName)
         {
             var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
             audioSettings.SelectMic(deviceId, deviceName);
         }
 
-        public void SelectSpeakers(string deviceId, string deviceName)
+        public void SelectSpeakerDevice(string deviceId, string deviceName)
         {
             var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
             audioSettings.SelectSpeaker(deviceId, deviceName);

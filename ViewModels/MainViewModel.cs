@@ -1,4 +1,8 @@
-﻿using zoom_custom_ui_wpf.Services.Zoom;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Input;
+using zoom_custom_ui_wpf.Models;
+using zoom_custom_ui_wpf.Services.Zoom;
 
 namespace zoom_custom_ui_wpf.ViewModels
 {
@@ -11,14 +15,17 @@ namespace zoom_custom_ui_wpf.ViewModels
             Title = "zoom-custom-ui-wpf";
 
             _zoomService = zoomService;
+            _zoomService.InitializedChanged += ZoomServiceOnInitializedChanged;
+            _zoomService.InitializationAsync();
+        }
 
-            var initResult = _zoomService.Init();
-
-            Text = initResult ? "Ok":"Error";
-
-            if (initResult)
+        private void ZoomServiceOnInitializedChanged(object sender, bool state)
+        {
+            if (state)
             {
-                _zoomService.Login();
+                VideoDevices = _zoomService.EnumerateVideoDevices()?.ToList();
+                MicDevices = _zoomService.EnumerateMicDevices()?.ToList();
+                SpeakerDevices = _zoomService.EnumerateSpeakerDevices()?.ToList();
             }
         }
 
@@ -26,22 +33,54 @@ namespace zoom_custom_ui_wpf.ViewModels
         public string Title
         {
             get => _title;
-            set
+            set => SetProperty(ref _title, value);
+        }
+
+        #region Settings
+
+        private List<ZoomDevice> _videoDevices;
+        public List<ZoomDevice> VideoDevices
+        {
+            get => _videoDevices;
+            set => SetProperty(ref _videoDevices, value);
+        }
+
+        private List<ZoomDevice> _micDevices;
+        public List<ZoomDevice> MicDevices
+        {
+            get => _micDevices;
+            set => SetProperty(ref _micDevices, value);
+        }
+
+        private List<ZoomDevice> _speakerDevices;
+        public List<ZoomDevice> SpeakerDevices
+        {
+            get => _speakerDevices;
+            set => SetProperty(ref _speakerDevices, value);
+        }
+
+        #endregion
+
+        #region Commands
+
+        private ICommand _SubmitCommand;
+        public ICommand LoginCommand
+        {
+            get
             {
-                _title = value;
-                OnPropertyChanged();
+                if (_SubmitCommand == null)
+                {
+                    _SubmitCommand = new RelayCommand(param => Login(), null);
+                }
+                return _SubmitCommand;
             }
         }
 
-        private string _text;
-        public string Text
+        private async void Login()
         {
-            get => _text;
-            set
-            {
-                _text = value;
-                OnPropertyChanged();
-            }
+            
         }
+
+        #endregion
     }
 }

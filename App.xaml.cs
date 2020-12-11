@@ -13,12 +13,13 @@ namespace zoom_custom_ui_wpf
     /// </summary>
     public partial class App : Application
     {
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
             // Create app services
             IApplicationSettings appSettings = new ApplicationSettings();
             ILogService logService = new DebugLogService();
             ICredentialsService credentialsService = new CredentialsService();
+
             IZoomService zoomService = new ZoomService(appSettings, credentialsService, logService);
 
             // Create and show MainWindow
