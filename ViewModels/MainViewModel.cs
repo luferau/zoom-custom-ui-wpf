@@ -34,8 +34,16 @@ namespace zoom_custom_ui_wpf.ViewModels
             if (state)
             {
                 VideoDevices = _zoomService.EnumerateVideoDevices()?.ToList();
+                if (VideoDevices != null && VideoDevices.Count > 0)
+                    SelectedVideoDevice = VideoDevices.First();
+                
                 MicDevices = _zoomService.EnumerateMicDevices()?.ToList();
+                if (MicDevices != null && MicDevices.Count > 0)
+                    SelectedMicDevice = MicDevices.First();
+                
                 SpeakerDevices = _zoomService.EnumerateSpeakerDevices()?.ToList();
+                if (SpeakerDevices != null && SpeakerDevices.Count > 0)
+                    SelectedSpeakerDevice = SpeakerDevices.First();
             }
         }
 
