@@ -18,6 +18,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
         private readonly ILogService _logService;
 
         private TaskCompletionSource<bool> _authTaskCompletion;
+        private TaskCompletionSource<bool> _joinTaskCompletion;
 
         public ZoomService(
             IApplicationSettings appSettingsService,
@@ -90,8 +91,13 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
             _logService.Log($"ZOOM SDKAuth request result: {error}");
 
-            _authTaskCompletion = new TaskCompletionSource<bool>();
-            return _authTaskCompletion.Task;
+            if (error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS)
+            {
+                _authTaskCompletion = new TaskCompletionSource<bool>();
+                return _authTaskCompletion.Task;
+            }
+
+            return Task.FromResult(false);
         }
 
         #endregion
@@ -138,7 +144,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         #endregion
 
-        public void JoinMeeting(string userName, ulong meetingNumber, string password)
+        public Task<bool> JoinMeetingAsync(string userName, ulong meetingNumber, string password)
         {
             RegisterMeetingCallBacks();
 
@@ -155,20 +161,31 @@ namespace zoom_custom_ui_wpf.Services.Zoom
                 normaluserJoin = joinApiParamNormal
             };
 
-            var err = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().Join(joinParam);
+            var error = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().Join(joinParam);
 
-            _logService.Log(text: $"Join Result: {err}");
+            _logService.Log(text: $"ZOOM Join request result: {error}");
 
-            if (err == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS)
+            if (error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS)
             {
-                //ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingAudioController()>.EnableMuteOnEntry(false);
+                _joinTaskCompletion = new TaskCompletionSource<bool>();
+                return _joinTaskCompletion.Task;
             }
-            else // todo error handle
-            {
 
-            }
+            return Task.FromResult(false);
         }
-        
+
+        public void UnmuteVideo()
+        {
+            var video = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingVideoController();
+            video.UnmuteVideo();
+        }
+
+        public void MuteVideo()
+        {
+            var video = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingVideoController();
+            video.MuteVideo();
+        }
+
         public void LeaveMeeting()
         {
             ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().Leave(LeaveMeetingCmd.LEAVE_MEETING);
@@ -222,7 +239,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         public void OnMeetingStatusChanged(MeetingStatus status, int iResult)
         {
-            _logService.Log(text: $"OnMeetingStatusChanged Callback Status: {status}");
+            _logService.Log(text: $"ZOOM OnMeetingStatusChanged Callback Status: {status}");
 
             switch (status)
             {
@@ -253,6 +270,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
                 case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_WAITINGFORHOST:
                     break;
                 case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_INMEETING:
+                    _joinTaskCompletion?.SetResult(true);
                     break;
                 case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_IDLE:
                     break;
@@ -283,11 +301,11 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         public void OnUserJoin(Array lstUserIds)
         {
-            _logService.Log("User joined...");
-
             if (lstUserIds == null)
                 return;
 
+            _logService.Log($"ZOOM {lstUserIds.Length} users joined");
+            
             if (NormalVideoRenderers == null)
                 NormalVideoRenderers = new List<INormalVideoRenderElementDotNetWrap>();
 
@@ -297,9 +315,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
                 if (user != null)
                 {
-                    var vidRenderer = VideoContainer.CreateVideoElement(elementType: VideoRenderElementType.VideoRenderElement_NORMAL) as INormalVideoRenderElementDotNetWrap;
-
-                    if (vidRenderer != null)
+                    if (VideoContainer.CreateVideoElement(elementType: VideoRenderElementType.VideoRenderElement_NORMAL) is INormalVideoRenderElementDotNetWrap vidRenderer)
                     {
                         vidRenderer.SetPos(pos: new RECT
                         {
@@ -315,13 +331,13 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
                         NormalVideoRenderers.Add(item: vidRenderer);
 
-                        _logService.Log("Session Render user: " + vidRenderer.GetCurrentRenderUserId());
+                        _logService.Log("Zoom Render user: " + vidRenderer.GetCurrentRenderUserId());
                     }
 
                     var name = user.GetUserNameW();
                     var isMySelf = user.IsMySelf();
 
-                    _logService.Log($"Session User name: {name} IsMySelf: {isMySelf}");
+                    _logService.Log($"Zoom User name: {name} IsMySelf: {isMySelf}");
                 }
             }
 
@@ -393,7 +409,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
                 if (VideoContainer != null)
                 {
-                    _logService.Log(text: $"VideoContainerPosition changed: {r.Left},{r.Top} - {r.Right},{r.Bottom}");
+                    _logService.Log(text: $"ZOOM VideoContainerPosition changed: {r.Left},{r.Top} - {r.Right},{r.Bottom}");
                     VideoContainer.Resize(rc: r);
 
                     UpdateNormalVideoRenderersSizes();

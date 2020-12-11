@@ -12,7 +12,9 @@ namespace zoom_custom_ui_wpf.Services.Zoom
         bool Initialized { get; }
 
         Task<bool> InitializationAsync();
-        void JoinMeeting(string userName, ulong meetingNumber, string password);
+        Task<bool> JoinMeetingAsync(string userName, ulong meetingNumber, string password);
+        void UnmuteVideo();
+        void MuteVideo();
         void LeaveMeeting();
         void CleanUp();
 

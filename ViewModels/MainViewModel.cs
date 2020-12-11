@@ -44,7 +44,7 @@ namespace zoom_custom_ui_wpf.ViewModels
         private ICommand _joinCommand;
         public ICommand JoinCommand => _joinCommand ?? (_joinCommand = new RelayCommand(execute: param => Join(), canExecute: null));
 
-        private void Join()
+        private async void Join()
         {
             _zoomService.ApplySettings(settings: new ZoomSettings
             {
@@ -59,7 +59,9 @@ namespace zoom_custom_ui_wpf.ViewModels
             _zoomService.SetMicDevice(SelectedMicDevice);
             _zoomService.SetSpeakerDevice(SelectedSpeakerDevice);
 
-            _zoomService.JoinMeeting(UserName, ulong.Parse(MeetingNumber), Password);
+            await _zoomService.JoinMeetingAsync(UserName, ulong.Parse(MeetingNumber), Password);
+
+            _zoomService.UnmuteVideo();
         }
 
         private ICommand _leaveCommand;
