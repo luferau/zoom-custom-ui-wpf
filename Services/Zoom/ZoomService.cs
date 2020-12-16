@@ -4,34 +4,31 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using zoom_custom_ui_wpf.Models;
-using zoom_custom_ui_wpf.Services.Credentials;
 using zoom_custom_ui_wpf.Services.Log;
-using zoom_custom_ui_wpf.Services.Settings;
 using ZOOM_SDK_DOTNET_WRAP;
 
 namespace zoom_custom_ui_wpf.Services.Zoom
 {
     public class ZoomService : IZoomService
     {
-        private readonly IApplicationSettings _appSettingsService;
-        private readonly ICredentialsService _credentialsService;
         private readonly ILogService _logService;
+
+        private const int AuthenticationTimeout_s = 10;
+        private const int MeetingJoiningTimeout_s = 60;
 
         private TaskCompletionSource<bool> _authTaskCompletion;
         private TaskCompletionSource<bool> _joinTaskCompletion;
 
-        public ZoomService(
-            IApplicationSettings appSettingsService,
-            ICredentialsService credentialsService, 
-            ILogService logService)
+        public ZoomService(ILogService logService)
         {
-            _appSettingsService = appSettingsService;
-            _credentialsService = credentialsService;
             _logService = logService;
         }
 
         #region Events
 
+        /// <summary>
+        /// Zoom SDK initialization status changed event
+        /// </summary>
         public event EventHandler<bool> InitializedChanged;
 
         protected virtual void OnInitializedChanged(bool state)
@@ -39,11 +36,24 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             InitializedChanged?.Invoke(this, state);
         }
 
+        /// <summary>
+        /// Meeting status changed event
+        /// </summary>
+        public event EventHandler<string> MeetingStatusChanged;
+
+        protected virtual void OnMeetingStatusChanged(ZOOM_SDK_DOTNET_WRAP.MeetingStatus status)
+        {
+            MeetingStatusChanged?.Invoke(this, MeetingStatusDecoder(status));
+        }
+
         #endregion
 
         #region Initialization
 
         private bool _initialized;
+        /// <summary>
+        /// Shows whether Zoom SDK is initialized
+        /// </summary>
         public bool Initialized
         {
             get => _initialized;
@@ -54,16 +64,32 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             }
         }
 
-        public async Task<bool> InitializationAsync()
+        /// <summary>
+        /// Performs Zoom SDK initialization.
+        /// You should register your app at https://marketplace.zoom.us and generate SDK Key & Secret.
+        /// See for help: https://marketplace.zoom.us/docs/guides/build/sdk-app
+        /// </summary>
+        /// <param name="appKey">SDK Key app credential</param>
+        /// <param name="appSecret">SDK Secret app credential</param>
+        /// <returns>SDK Initialization result</returns>
+        public async Task<bool> InitializationAsync(string appKey, string appSecret)
         {
-            var sdkInitialized = InitializeSdk();
-            if (!sdkInitialized) return false;
+            try
+            {
+                var sdkInitialized = SdkInitialize();
+                if (!sdkInitialized) return false;
 
-            Initialized = await SdkAuthenticationAsync();
+                Initialized = await SdkAuthenticationAsync(appKey, appSecret);
+            }
+            catch (Exception)
+            {
+                Initialized = false;
+            }
+            
             return Initialized;
         }
 
-        private bool InitializeSdk()
+        private bool SdkInitialize()
         {
             ZOOM_SDK_DOTNET_WRAP.InitParam param = new ZOOM_SDK_DOTNET_WRAP.InitParam
             {
@@ -77,14 +103,14 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             return error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS;
         }
 
-        private Task<bool> SdkAuthenticationAsync()
+        private Task<bool> SdkAuthenticationAsync(string appKey, string appSecret)
         {
             RegisterAuthenticationCallbacks();
 
             ZOOM_SDK_DOTNET_WRAP.AuthParam authParam = new AuthParam
             {
-                appKey = _credentialsService.GetAppKey(),
-                appSecret = _credentialsService.GetAppSecret()
+                appKey = appKey,
+                appSecret = appSecret
             };
 
             ZOOM_SDK_DOTNET_WRAP.SDKError error = CZoomSDKeDotNetWrap.Instance.GetAuthServiceWrap().SDKAuth(authParam);
@@ -93,17 +119,17 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
             if (error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS)
             {
-                _authTaskCompletion = new TaskCompletionSource<bool>();
-                return _authTaskCompletion.Task;
+                _authTaskCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                return _authTaskCompletion.Task.TimeoutAfter(TimeSpan.FromSeconds(AuthenticationTimeout_s));
             }
 
             return Task.FromResult(false);
         }
-
+        
         #endregion
 
         #region Zoom authentication callbacks
-        
+
         private void RegisterAuthenticationCallbacks()
         {
             ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetAuthServiceWrap().Add_CB_onAuthenticationReturn(OnAuthenticationReturn);
@@ -122,14 +148,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
         {
             _logService.Log($"ZOOM OnAuthenticationReturn callback AuthResult: {result}");
 
-            if (result == ZOOM_SDK_DOTNET_WRAP.AuthResult.AUTHRET_SUCCESS)
-            {
-                _authTaskCompletion.SetResult(true);
-            }
-            else
-            {
-                _authTaskCompletion.SetResult(false);
-            }
+            _authTaskCompletion.SetResult(result == ZOOM_SDK_DOTNET_WRAP.AuthResult.AUTHRET_SUCCESS);
         }
 
         private void OnLoginRet(LOGINSTATUS status, IAccountInfo pAccountInfo)
@@ -144,6 +163,15 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         #endregion
 
+        #region Meeting control
+
+        /// <summary>
+        /// Joins to already exists meeting created by some host.
+        /// </summary>
+        /// <param name="userName">Name under which user is joining to meeting</param>
+        /// <param name="meetingNumber">Meeting number</param>
+        /// <param name="password">Meeting password</param>
+        /// <returns>Meeting joining result</returns>
         public Task<bool> JoinMeetingAsync(string userName, ulong meetingNumber, string password)
         {
             RegisterMeetingCallBacks();
@@ -167,25 +195,16 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
             if (error == ZOOM_SDK_DOTNET_WRAP.SDKError.SDKERR_SUCCESS)
             {
-                _joinTaskCompletion = new TaskCompletionSource<bool>();
-                return _joinTaskCompletion.Task;
+                _joinTaskCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                return _joinTaskCompletion.Task.TimeoutAfter(TimeSpan.FromSeconds(MeetingJoiningTimeout_s));
             }
 
             return Task.FromResult(false);
         }
 
-        public void UnmuteVideo()
-        {
-            var video = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingVideoController();
-            video.UnmuteVideo();
-        }
-
-        public void MuteVideo()
-        {
-            var video = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingVideoController();
-            video.MuteVideo();
-        }
-
+        /// <summary>
+        /// Leave current meeting
+        /// </summary>
         public void LeaveMeeting()
         {
             ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().Leave(LeaveMeetingCmd.LEAVE_MEETING);
@@ -195,6 +214,27 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             CleanupVideoContainer();
         }
 
+        /// <summary>
+        /// Unmute meeting video (start showing for other meeting participants)
+        /// </summary>
+        public void UnmuteVideo()
+        {
+            var video = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingVideoController();
+            video.UnmuteVideo();
+        }
+
+        /// <summary>
+        /// Mute meeting video (stop showing for other meeting participants)
+        /// </summary>
+        public void MuteVideo()
+        {
+            var video = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingVideoController();
+            video.MuteVideo();
+        }
+
+        /// <summary>
+        /// Clean up ZOOM SDK
+        /// </summary>
         public void CleanUp()
         {
             if (Initialized)
@@ -208,17 +248,8 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             }
         }
 
-        public void ApplySettings(ZoomSettings settings)
-        {
-            // Video
-            var videoSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetVideoSettings();
-            videoSettings.EnableHardwareEncode(settings.HardwareEncode);
+        #endregion
 
-            // Audio
-            var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
-            audioSettings.EnableAutoJoinAudio(settings.AutoJoinAudio);
-        }
-        
         #region Zoom meeting callbacks
 
         private void RegisterMeetingCallBacks()
@@ -237,12 +268,16 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetMeetingServiceWrap().GetMeetingParticipantsController().Remove_CB_onUserNameChanged(cb: OnUserNameChanged);
         }
 
-        public void OnMeetingStatusChanged(MeetingStatus status, int iResult)
+        public void OnMeetingStatusChanged(ZOOM_SDK_DOTNET_WRAP.MeetingStatus status, int iResult)
         {
             _logService.Log(text: $"ZOOM OnMeetingStatusChanged Callback Status: {status}");
 
+            OnMeetingStatusChanged(status);
+
             switch (status)
             {
+                #region MEETING_STATUS_CONNECTING
+
                 case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_CONNECTING:
 
                     var rect = new RECT
@@ -260,43 +295,81 @@ namespace zoom_custom_ui_wpf.Services.Zoom
                     VideoContainer.Show();
 
                     break;
+
+                #endregion
+
                 case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_DISCONNECTING:
                     LeaveMeeting();
-                    break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_ENDED:
-                    break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_FAILED:
-                    break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_WAITINGFORHOST:
                     break;
                 case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_INMEETING:
                     _joinTaskCompletion?.SetResult(true);
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_IDLE:
+            }
+        }
+
+        private string MeetingStatusDecoder(ZOOM_SDK_DOTNET_WRAP.MeetingStatus status)
+        {
+            string statusString;
+
+            switch (status)
+            {
+                case MeetingStatus.MEETING_STATUS_IDLE:
+                    statusString = "No meeting is running.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_RECONNECTING:
+                case MeetingStatus.MEETING_STATUS_CONNECTING:
+                    statusString = "Connect to the meeting server status.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_UNKNOW:
+                case MeetingStatus.MEETING_STATUS_WAITINGFORHOST:
+                    statusString = "Waiting for the host to start the meeting.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_LOCKED:
+                case MeetingStatus.MEETING_STATUS_INMEETING:
+                    statusString = "Meeting is ready, in meeting status.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_UNLOCKED:
+                case MeetingStatus.MEETING_STATUS_DISCONNECTING:
+                    statusString = "Disconnect the meeting server, leave meeting status.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_IN_WAITING_ROOM:
+                case MeetingStatus.MEETING_STATUS_RECONNECTING:
+                    statusString = "Reconnecting meeting server status.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_WEBINAR_PROMOTE:
+                case MeetingStatus.MEETING_STATUS_FAILED:
+                    statusString = "Failed to connect the meeting server.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_WEBINAR_DEPROMOTE:
+                case MeetingStatus.MEETING_STATUS_ENDED:
+                    statusString = "Meeting ends.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_JOIN_BREAKOUT_ROOM:
+                case MeetingStatus.MEETING_STATUS_UNKNOW:
+                    statusString = "Unknown status.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_LEAVE_BREAKOUT_ROOM:
+                case MeetingStatus.MEETING_STATUS_LOCKED:
+                    statusString = "Meeting is locked to prevent the further participants to join the meeting.";
                     break;
-                case ZOOM_SDK_DOTNET_WRAP.MeetingStatus.MEETING_STATUS_WAITING_EXTERNAL_SESSION_KEY:
+                case MeetingStatus.MEETING_STATUS_UNLOCKED:
+                    statusString = "Meeting is open and participants can join the meeting.";
+                    break;
+                case MeetingStatus.MEETING_STATUS_IN_WAITING_ROOM:
+                    statusString = "Participants who join the meeting before the start are in the waiting room.";
+                    break;
+                case MeetingStatus.MEETING_STATUS_WEBINAR_PROMOTE:
+                    statusString = "Upgrade the attendees to panelist in webinar.";
+                    break;
+                case MeetingStatus.MEETING_STATUS_WEBINAR_DEPROMOTE:
+                    statusString = "Downgrade the attendees from the panelist.";
+                    break;
+                case MeetingStatus.MEETING_STATUS_JOIN_BREAKOUT_ROOM:
+                    statusString = "Join the breakout room.";
+                    break;
+                case MeetingStatus.MEETING_STATUS_LEAVE_BREAKOUT_ROOM:
+                    statusString = "Leave the breakout room.";
+                    break;
+                case MeetingStatus.MEETING_STATUS_WAITING_EXTERNAL_SESSION_KEY:
+                    statusString = "Waiting for the additional secret key.";
                     break;
                 default:
+                    statusString = "Unknown status.";
                     break;
             }
+
+            return statusString;
         }
 
         public void OnUserJoin(Array lstUserIds)
@@ -305,7 +378,7 @@ namespace zoom_custom_ui_wpf.Services.Zoom
                 return;
 
             _logService.Log($"ZOOM {lstUserIds.Length} users joined");
-            
+
             if (NormalVideoRenderers == null)
                 NormalVideoRenderers = new List<INormalVideoRenderElementDotNetWrap>();
 
@@ -368,6 +441,22 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         #endregion
 
+
+        /// <summary>
+        /// Apply meeting settings
+        /// </summary>
+        /// <param name="settings"></param>
+        public void ApplySettings(ZoomSettings settings)
+        {
+            // Video
+            var videoSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetVideoSettings();
+            videoSettings.EnableHardwareEncode(settings.HardwareEncode);
+
+            // Audio
+            var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
+            audioSettings.EnableAutoJoinAudio(settings.AutoJoinAudio);
+        }
+        
         #region IZoomHost implementation
 
         public void SetVideoContainerPosition(Rect position)
@@ -462,6 +551,9 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         #region Enumerate PC audio/video devices
 
+        /// <summary>
+        /// Get camera device list. 
+        /// </summary>
         public IEnumerable<ZoomDevice> EnumerateVideoDevices()
         {
             var videoSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetVideoSettings();
@@ -481,6 +573,9 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             return devicesList;
         }
 
+        /// <summary>
+        /// Get the microphone device list.
+        /// </summary>
         public IEnumerable<ZoomDevice> EnumerateMicDevices()
         {
             var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
@@ -500,6 +595,9 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             return devicesList;
         }
 
+        /// <summary>
+        /// Get the speaker device list.
+        /// </summary>
         public IEnumerable<ZoomDevice> EnumerateSpeakerDevices()
         {
             var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
@@ -523,6 +621,11 @@ namespace zoom_custom_ui_wpf.Services.Zoom
 
         #region Select PC audio/video devices for use in Zoom
 
+        /// <summary>
+        /// Set video device to use in meeting.
+        /// </summary>
+        /// <param name="device">Video device</param>
+        /// <returns>Operation result</returns>
         public bool SetVideoDevice(ZoomDevice device)
         {
             var videoSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetVideoSettings();
@@ -531,6 +634,11 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             return error == SDKError.SDKERR_SUCCESS;
         }
 
+        /// <summary>
+        /// Set microphone device to use in meeting.
+        /// </summary>
+        /// <param name="device">Microphone device</param>
+        /// <returns>Operation result</returns>
         public bool SetMicDevice(ZoomDevice device)
         {
             var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();
@@ -539,6 +647,11 @@ namespace zoom_custom_ui_wpf.Services.Zoom
             return error == SDKError.SDKERR_SUCCESS;
         }
 
+        /// <summary>
+        /// Set speaker device to use in meeting.
+        /// </summary>
+        /// <param name="device">Speaker device</param>
+        /// <returns>Operation result</returns>
         public bool SetSpeakerDevice(ZoomDevice device)
         {
             var audioSettings = ZOOM_SDK_DOTNET_WRAP.CZoomSDKeDotNetWrap.Instance.GetSettingServiceWrap().GetAudioSettings();

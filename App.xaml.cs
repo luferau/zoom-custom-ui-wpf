@@ -20,7 +20,7 @@ namespace zoom_custom_ui_wpf
             ILogService logService = new DebugLogService();
             ICredentialsService credentialsService = new CredentialsService();
 
-            IZoomService zoomService = new ZoomService(appSettings, credentialsService, logService);
+            IZoomService zoomService = new ZoomService(logService);
 
             // Create and show MainWindow
             var mainWindow = new MainWindow();

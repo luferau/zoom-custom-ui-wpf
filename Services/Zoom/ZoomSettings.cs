@@ -7,5 +7,11 @@
 
         // Audio
         public bool AutoJoinAudio { get; set; }
+
+        /*
+         *
+         * Add another important settings here
+         *
+         */
     }
 }

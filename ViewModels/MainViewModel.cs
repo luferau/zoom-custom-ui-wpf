@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using Nito.Mvvm;
 using zoom_custom_ui_wpf.Models;
 using zoom_custom_ui_wpf.Services.Credentials;
 using zoom_custom_ui_wpf.Services.Zoom;
@@ -17,21 +19,39 @@ namespace zoom_custom_ui_wpf.ViewModels
             Title = "zoom-custom-ui-wpf";
 
             _credentialsService = credentialsService;
-
-            _zoomService = zoomService;
-            _zoomService.InitializedChanged += ZoomServiceOnInitializedChanged;
-            _zoomService.InitializationAsync();
-
             UserName = _credentialsService.GetUserName();
             MeetingNumber = _credentialsService.GetMeetingNumber();
             Password = _credentialsService.GetPassword();
+
+            _zoomService = zoomService;
+            _zoomService.InitializedChanged += ZoomServiceOnInitializedChanged;
+            _zoomService.MeetingStatusChanged += ZoomServiceOnMeetingStatusChanged;
+
+            // Running async code from constructor
+            // Thanks Stephen Cleary and his Nito.Mvvm.Async library
+            // https://blog.stephencleary.com/2013/01/async-oop-2-constructors.html
+            InitializationNotifier = NotifyTask.Create(InitializationAsync());
+        }
+
+        public NotifyTask InitializationNotifier { get; private set; }
+
+        private async Task InitializationAsync()
+        {
+            // Busy indicator on
+            BusyText = "Zoom SDK initialization...";
+            IsBusy = true;
+
+            await _zoomService.InitializationAsync(_credentialsService.GetAppKey(), _credentialsService.GetAppSecret());
+
+            // Busy indicator off
+            IsBusy = false;
         }
 
         public IZoomHost ZoomHost => _zoomService;
 
-        private void ZoomServiceOnInitializedChanged(object sender, bool state)
+        private void ZoomServiceOnInitializedChanged(object sender, bool initialized)
         {
-            if (state)
+            if (initialized)
             {
                 VideoDevices = _zoomService.EnumerateVideoDevices()?.ToList();
                 if (VideoDevices != null && VideoDevices.Count > 0)
@@ -47,6 +67,11 @@ namespace zoom_custom_ui_wpf.ViewModels
             }
         }
 
+        private void ZoomServiceOnMeetingStatusChanged(object sender, string statusString)
+        {
+            Status = statusString;
+        }
+
         #region Commands
 
         private ICommand _joinCommand;
@@ -54,6 +79,10 @@ namespace zoom_custom_ui_wpf.ViewModels
 
         private async void Join()
         {
+            // Busy indicator on
+            BusyText = "Joining...";
+            IsBusy = true;
+
             _zoomService.ApplySettings(settings: new ZoomSettings
             {
                 // Video
@@ -67,9 +96,12 @@ namespace zoom_custom_ui_wpf.ViewModels
             _zoomService.SetMicDevice(SelectedMicDevice);
             _zoomService.SetSpeakerDevice(SelectedSpeakerDevice);
 
-            await _zoomService.JoinMeetingAsync(UserName, ulong.Parse(MeetingNumber), Password);
+            var joinResult = await _zoomService.JoinMeetingAsync(UserName, ulong.Parse(MeetingNumber), Password);
 
             _zoomService.UnmuteVideo();
+
+            // Busy indicator off
+            IsBusy = false;
         }
 
         private ICommand _leaveCommand;
@@ -112,8 +144,29 @@ namespace zoom_custom_ui_wpf.ViewModels
             set => SetProperty(storage: ref _password, value: value);
         }
 
+        private bool _isBusy;
+        public bool IsBusy
+        {
+            get => _isBusy;
+            set => SetProperty(ref _isBusy, value);
+        }
+
+        private string _busyText;
+        public string BusyText
+        {
+            get => _busyText;
+            set => SetProperty(ref _busyText, value);
+        }
+
+        private string _status;
+        public string Status
+        {
+            get => _status;
+            set => SetProperty(ref _status, value);
+        }
+
         #endregion
-        
+
         #region Zoom hardware settings
 
         private List<ZoomDevice> _videoDevices;

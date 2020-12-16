@@ -5,146 +5,174 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="{Binding Title}" Height="400" Width="1000" Loaded="Window_Loaded">
+    <Window.Resources>
+
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel
-            Grid.Column="0"
-            Orientation="Vertical">
-            
-            <!-- Settings -->
-            <GroupBox
-                Margin="0,10,0,0"
-                VerticalAlignment="Top"
-                Header="Settings">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+        <Grid>
 
-                    <!-- Video -->
-                    <TextBlock
-                        Grid.Column="0"
-                        Grid.Row="0"
-                        VerticalAlignment="Center"
-                        Text="Video device:"/>
-                    <ComboBox
-                        Grid.Column="1"
-                        Grid.Row="0"
-                        Margin="5,5,0,0"
-                        ItemsSource="{Binding VideoDevices}"
-                        SelectedItem="{Binding SelectedVideoDevice}"
-                        DisplayMemberPath="Name"/>
+            <StackPanel
+                Grid.Column="0"
+                Orientation="Vertical">
 
-                    <!-- Microphone -->
+                <!-- Settings -->
+                <GroupBox
+                    Margin="0,10,0,0"
+                    VerticalAlignment="Top"
+                    Header="Settings">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Video -->
+                        <TextBlock
+                            Grid.Column="0"
+                            Grid.Row="0"
+                            VerticalAlignment="Center"
+                            Text="Video device:"/>
+                        <ComboBox
+                            Grid.Column="1"
+                            Grid.Row="0"
+                            Margin="5,5,0,0"
+                            ItemsSource="{Binding VideoDevices}"
+                            SelectedItem="{Binding SelectedVideoDevice}"
+                            DisplayMemberPath="Name"/>
+
+                        <!-- Microphone -->
+                        <TextBlock 
+                            Grid.Column="0"
+                            Grid.Row="1" 
+                            VerticalAlignment="Center"
+                            Text="Microphone device:"/>
+                        <ComboBox
+                            Grid.Column="1"
+                            Grid.Row="1"
+                            Margin="5,5,0,0"
+                            ItemsSource="{Binding MicDevices}"
+                            SelectedItem="{Binding SelectedMicDevice}"
+                            DisplayMemberPath="Name"/>
+
+                        <!-- Speaker -->
+                        <TextBlock
+                            Grid.Column="0"
+                            Grid.Row="2"
+                            VerticalAlignment="Center"
+                            Text="Speaker device:"/>
+                        <ComboBox
+                            Grid.Column="1"
+                            Grid.Row="2"
+                            Margin="5,5,0,0"
+                            ItemsSource="{Binding SpeakerDevices}"
+                            SelectedItem="{Binding SelectedSpeakerDevice}"
+                            DisplayMemberPath="Name" />
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox  
+                    Margin="0,10,0,0"
+                    VerticalAlignment="Top"
+                    Header="Meeting">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- User name -->
+                        <TextBlock
+                            Grid.Column="0"
+                            Grid.Row="0"
+                            VerticalAlignment="Center"
+                            Text="User name:"/>
+                        <TextBox
+                            Grid.Column="1"
+                            Grid.Row="0"
+                            Margin="5,5,0,0"
+                            Text="{Binding UserName}"/>
+
+                        <!-- MeetingNumber -->
+                        <TextBlock
+                            Grid.Column="0"
+                            Grid.Row="1"
+                            VerticalAlignment="Center"
+                            Text="Meeting number:"/>
+                        <TextBox
+                            Grid.Column="1"
+                            Grid.Row="1"
+                            Margin="5,5,0,0"
+                            Text="{Binding MeetingNumber}"/>
+
+                        <!-- Password -->
+                        <TextBlock
+                            Grid.Column="0"
+                            Grid.Row="2"
+                            VerticalAlignment="Center"
+                            Text="Password:"/>
+                        <TextBox
+                            Grid.Column="1"
+                            Grid.Row="2"
+                            Margin="5,5,0,0"
+                            Text="{Binding Password}"/>
+
+                        <Button 
+                            Grid.Column="0"
+                            Grid.Row="3"
+                            Content="Join"
+                            Width="100"
+                            Margin="5,5,0,0"
+                            Command="{Binding JoinCommand}"/>
+                        <Button 
+                            Grid.Column="1"
+                            Grid.Row="3"
+                            Content="Leave"
+                            Width="100"
+                            Margin="5,5,0,0"
+                            Command="{Binding LeaveCommand}"/>
+                    </Grid>
+                </GroupBox>
+            </StackPanel>
+
+            <Border 
+                Background="#A0000000" BorderThickness="0" 
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock 
-                        Grid.Column="0"
-                        Grid.Row="1" 
-                        VerticalAlignment="Center"
-                        Text="Microphone device:"/>
-                    <ComboBox
-                        Grid.Column="1"
-                        Grid.Row="1"
-                        Margin="5,5,0,0"
-                        ItemsSource="{Binding MicDevices}"
-                        SelectedItem="{Binding SelectedMicDevice}"
-                        DisplayMemberPath="Name"/>
-
-                    <!-- Speaker -->
-                    <TextBlock
-                        Grid.Column="0"
-                        Grid.Row="2"
-                        VerticalAlignment="Center"
-                        Text="Speaker device:"/>
-                    <ComboBox
-                        Grid.Column="1"
-                        Grid.Row="2"
-                        Margin="5,5,0,0"
-                        ItemsSource="{Binding SpeakerDevices}"
-                        SelectedItem="{Binding SelectedSpeakerDevice}"
-                        DisplayMemberPath="Name" />
-                </Grid>
-            </GroupBox>
-
-            <GroupBox  
-                Margin="0,10,0,0"
-                VerticalAlignment="Top"
-                Header="Meeting">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- User name -->
-                    <TextBlock
-                        Grid.Column="0"
-                        Grid.Row="0"
-                        VerticalAlignment="Center"
-                        Text="User name:"/>
-                    <TextBox
-                        Grid.Column="1"
-                        Grid.Row="0"
-                        Margin="5,5,0,0"
-                        Text="{Binding UserName}"/>
-
-                    <!-- MeetingNumber -->
-                    <TextBlock
-                        Grid.Column="0"
-                        Grid.Row="1"
-                        VerticalAlignment="Center"
-                        Text="Meeting number:"/>
-                    <TextBox
-                        Grid.Column="1"
-                        Grid.Row="1"
-                        Margin="5,5,0,0"
-                        Text="{Binding MeetingNumber}"/>
-
-                    <!-- Password -->
-                    <TextBlock
-                        Grid.Column="0"
-                        Grid.Row="2"
-                        VerticalAlignment="Center"
-                        Text="Password:"/>
-                    <TextBox
-                        Grid.Column="1"
-                        Grid.Row="2"
-                        Margin="5,5,0,0"
-                        Text="{Binding Password}"/>
-
-                    <Button 
-                        Grid.Column="0"
-                        Grid.Row="3"
-                        Content="Join"
-                        Width="100"
-                        Margin="5,5,0,0"
-                        Command="{Binding JoinCommand}"/>
-                    <Button 
-                        Grid.Column="1"
-                        Grid.Row="3"
-                        Content="Leave"
-                        Width="100"
-                        Margin="5,5,0,0"
-                        Command="{Binding LeaveCommand}"/>
-                </Grid>
-            </GroupBox>
-        </StackPanel>
-
+                        Text="{Binding BusyText, FallbackValue=BusyText}" 
+                        FontWeight="Bold" 
+                        FontSize="18" 
+                        Foreground="#FFFFFFFF" 
+                        Margin="0 10 0 0"/>
+                    <TextBlock 
+                        Text="{Binding Status, FallbackValue=Status}" 
+                        FontWeight="Regular" 
+                        FontSize="14" 
+                        Foreground="#FFFFFFFF" 
+                        Margin="0 10 0 0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <!-- Video Container -->
         <Border 
