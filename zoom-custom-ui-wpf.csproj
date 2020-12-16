@@ -71,6 +71,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Helpers\StringHelper.cs" />
     <Compile Include="Services\Zoom\TaskHelper.cs" />
     <Compile Include="Models\ZoomDevice.cs" />
     <Compile Include="Services\Credentials\CredentialsService.cs" />

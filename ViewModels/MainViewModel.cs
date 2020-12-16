@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Nito.Mvvm;
+using zoom_custom_ui_wpf.Helpers;
 using zoom_custom_ui_wpf.Models;
 using zoom_custom_ui_wpf.Services.Credentials;
 using zoom_custom_ui_wpf.Services.Zoom;
@@ -162,7 +164,7 @@ namespace zoom_custom_ui_wpf.ViewModels
         public string Status
         {
             get => _status;
-            set => SetProperty(ref _status, value);
+            set => SetProperty(ref _status, value.SplitByCharacters(40, Environment.NewLine));
         }
 
         #endregion

@@ -157,7 +157,9 @@
                 Background="#A0000000" BorderThickness="0" 
                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel
-                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                    VerticalAlignment="Center" 
+                    HorizontalAlignment="Left"
+                    Margin="20,10,10,20">
                     <TextBlock 
                         Text="{Binding BusyText, FallbackValue=BusyText}" 
                         FontWeight="Bold" 
