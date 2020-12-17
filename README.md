@@ -30,7 +30,7 @@ set "repo_target_name=zoom-custom-ui-wpf"
 cd..
 git clone %repo_path%
 
-xcopy /s/e/y "%repo_name%\bin\" "%repo_target_name%\zoombin\"
+xcopy /s/e/y "%repo_name%\bin" "%repo_target_name%\zoombin\"
 ```
 
 3. Open solution in VS2019
