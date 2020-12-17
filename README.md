@@ -31,4 +31,11 @@ git clone %repo_path%
 xcopy /s/e/y "%repo_name%\bin\" "%repo_target_name%\zoombin\"
 ```
 
-3. Open solution in VS2019 and compile
+3. Open solution in VS2019
+
+4. Register your app at https://marketplace.zoom.us and generate SDK Key & Secret.
+See for help: https://marketplace.zoom.us/docs/guides/build/sdk-app
+
+5. Fill your values in app [CredentialsService](/Services/Credentials/CredentialsService.cs)
+ 
+6. Compile and run
