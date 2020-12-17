@@ -3,6 +3,8 @@ Just application example that illustrates how to implement Zoom Custom UI in WPF
 
 ![alt text](/img/zoom-custom-ui-wpf.png)
 
+Demo https://www.youtube.com/watch?v=6BeLlG7OQa0
+
 ## steps to app compilation
 1. Clone repository
 
