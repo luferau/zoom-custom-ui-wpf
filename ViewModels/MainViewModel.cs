@@ -89,6 +89,7 @@ namespace zoom_custom_ui_wpf.ViewModels
             {
                 // Video
                 HardwareEncode = true,
+                VideoMirrorEffect = false,
 
                 // Audio
                 AutoJoinAudio = true

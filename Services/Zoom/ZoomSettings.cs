@@ -5,6 +5,8 @@
         // Video
         public bool HardwareEncode { get; set; }
 
+        public bool VideoMirrorEffect { get; set; }
+
         // Audio
         public bool AutoJoinAudio { get; set; }
 
