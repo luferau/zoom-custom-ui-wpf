@@ -14,6 +14,13 @@ git clone https://github.com/luferau/zoom-custom-ui-wpf.git
 
 2. Load Zoom SDK libraries 
 
+2.1. **ZOOM changed the way of getting the library**
+
+ZOOM Windows SDK and C# wrapper now can only be downloaded from https://marketplace.zoom.us/develop
+Please follow this documentation https://marketplace.zoom.us/docs/sdk/native-sdks/windows/c-sharp-wrapper to acquire Windows(C#) SDK libraries.
+After downloading .zip archive, just copy the *bin* folder from the archive to the root folder of the zoom-custom-ui-wpf repository and rename it to *zoombin*
+
+2.2. Get v.5.2.42037.1112 from https://github.com/zoom/zoom-c-sharp-wrapper/
 ```
 cd zoom-custom-ui-wpf
 get-zoom-libraries.bat
